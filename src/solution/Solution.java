@@ -1,4 +1,3 @@
-  
 package solution;
 
 import instance.Instance;

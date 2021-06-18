@@ -44,8 +44,10 @@ public class TourneeTech extends Tournee {
 
     @Override
     public boolean canInsererRequest(Request request) {
+
         if (request.getJourLivraison() >= this.jour)
             return false;
+
 
         if(request.getLastDay() < this.jour)
             return false;
@@ -61,5 +63,15 @@ public class TourneeTech extends Tournee {
     @Override
     public boolean checkAjoutDistance(int delta) {
         return distance + delta <= getTechnician().getMaxDistance();
+    }
+
+    public boolean retirerRequete(int position){
+        if (isPositionvalide(position)){
+            coutTotal -= this.deltaCoutSuppression(position);
+            this.listRequest.remove(position);
+            return true;
+        }else {
+            return false;
+        }
     }
 }

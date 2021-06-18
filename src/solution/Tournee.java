@@ -367,6 +367,10 @@ public abstract class Tournee {
         return instance.getTruckDistanceCost();
     }
 
+    public int getCoutTechDistance(){
+        return instance.getTechnicianDistanceCost();
+    }
+
     public int deltaCoutInsertionInterTruck(int position, Request request){
         if(this instanceof TourneeTruck) {
             TourneeTruck tourneeTruck = (TourneeTruck) this;
@@ -382,6 +386,30 @@ public abstract class Tournee {
             int cout = deltaCoutInsertion(position,request);
 
             if(tourneeTruck.getDistance()+cout > tourneeTruck.getMaxDistance())
+                return Integer.MAX_VALUE;
+            return cout;
+        }else
+            return Integer.MAX_VALUE;
+    }
+
+
+    public int deltaCoutInsertionInterTech(int position, Request request){
+        if(this instanceof TourneeTech) {
+            TourneeTech tourneeTech = (TourneeTech) this;
+
+            if(jour < request.getFirstDay()+1 || jour > request.getLastDay())
+                return Integer.MAX_VALUE;
+            if(jour <= request.getJourLivraison())
+                return Integer.MAX_VALUE;
+
+            if(!tourneeTech.getTechnician().canInstallerMachine(request.getIdMachine()))
+                return Integer.MAX_VALUE;
+            //int tailleMachine = instance.getMapMachines().get(request.getIdMachine()).getSize();
+            if(tourneeTech.getTechnician().getDemande(jour)+request.getNbMachine() > tourneeTech.getTechnician().getMaxDemande())
+                return Integer.MAX_VALUE;
+            int cout = deltaCoutInsertion(position,request);
+
+            if(tourneeTech.getTechnician().getDistance(jour)+cout > tourneeTech.getTechnician().getMaxDistance())
                 return Integer.MAX_VALUE;
             return cout;
         }else
@@ -427,6 +455,29 @@ public abstract class Tournee {
         }
     }
 
+    public boolean doDeplacementTech(InterDeplacementTech infos){
+        if(infos == null){
+            return false;
+        }
+        if(infos.isMouvementRealisable()){
+            Request i = infos.getRequestI();
+            Tournee t2 = infos.getAutreTournee();
+            int posi = infos.getPositionI();
+            int posj = infos.getPositionJ();
+            t2.coutTotal += infos.getDeltaCoutAutreTournee();
+            coutTotal += infos.getDeltaCoutTournee();
+
+            ((TourneeTech) t2).getTechnician().insererRequest(infos.getDeltaCoutAutreTournee(),jour);
+            ((TourneeTech) this).getTechnician().retirerRequest(infos.getDeltaCoutTournee(),jour);
+
+            listRequest.remove(posi);
+            t2.listRequest.add(posj, i);
+            return true;
+        }else{
+            return false;
+        }
+    }
+
     @Override
     public String toString() {
         return "Tournee{" +
@@ -449,6 +500,27 @@ public abstract class Tournee {
         }
         if(t1.listRequest.size() == 1){
             cout += -instance.getTruckDayCost();
+        }
+        return cout;
+    }
+
+    public int getCoutSuppDeplacementTech(InterDeplacementTech infos){
+        int cout = 0;
+        int i = infos.getPositionI();
+        int j = infos.getPositionJ();
+        TourneeTech t1 = (TourneeTech) infos.getTournee();
+        TourneeTech t2 = (TourneeTech) infos.getAutreTournee();
+        if(t1.jour != t2.jour){
+            if(t2.jour <= t1.listRequest.get(i).getJourLivraison()){
+                return Integer.MAX_VALUE;
+            }else{
+                cout += (t2.jour - t1.jour)*instance.getMapMachines().get(t1.listRequest.get(i).getIdMachine()).getPenalityCost();
+            }
+        }
+        if(t1.listRequest.size() == 1){
+            cout += -instance.getTechnicianDayCost();
+            if(!((TourneeTech) this).getTechnician().isUsedAnotherDay(jour))
+                cout += -instance.getTechnicianCost();
         }
         return cout;
     }

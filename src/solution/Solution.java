@@ -1,3 +1,4 @@
+  
 package solution;
 
 import instance.Instance;
@@ -178,6 +179,7 @@ public class Solution {
 
         if(!t.ajouterRequest(r)) return false;
 
+
         if (listeTournees.get(jour) == null)
             listeTournees.put(jour, new LinkedList<>());
 
@@ -272,7 +274,15 @@ public class Solution {
         if (tournees == null || tournees.isEmpty()) return false;
 
         // Normalement aucun problème une fois de plus
-        TourneeTech t = (TourneeTech) tournees.getLast();
+        TourneeTech t = null;
+        for (Tournee tournee : tournees) {
+            if(tournee instanceof TourneeTech){
+                t = (TourneeTech) tournee;
+            }
+        }
+
+        if(t == null)
+            return false;
 
         if (techPlusProche == t.getTechnician())
             return ajouterClientTourneeTech(r, t);
@@ -308,6 +318,24 @@ public class Solution {
         return true;
     }
 
+    public boolean retirerRequestTourneeTech(int position, TourneeTech tourneeTech){
+        Request request = tourneeTech.getRequestAt(position);
+
+        int distance = tourneeTech.deltaCoutSuppression(position);
+        technicianDistance += distance;
+        totaltechCost += distance*techDistanceCost;
+        coutTotal += distance*techDistanceCost;
+        int delais = request.getJourInstallation()-request.getJourLivraison();
+        if(delais != 1){
+            int idleCost = -delais*instance.getMapMachines().get(request.getIdMachine()).getPenalityCost();
+            machineCost += idleCost;
+            coutTotal += idleCost;
+        }
+        request.setJourInstallation(Integer.MAX_VALUE);
+        tourneeTech.getTechnician().retirerRequest(distance,tourneeTech.getJour());
+        return tourneeTech.retirerRequete(position);
+    }
+
     /**
      * Fonction qui renvoie le meilleur opérateur intra solution
      * @param type le type d'opérateur
@@ -319,15 +347,21 @@ public class Solution {
         for(int jour = 1; jour <= listeTournees.size(); jour++) {
             if(listeTournees.get(jour) != null) {
                 for (Tournee tournee : listeTournees.get(jour)) {
-                    if((tournee instanceof TourneeTruck &&
-                        (meilleur instanceof IntraDeplacementTruck || meilleur instanceof IntraEchangeTruck)
-                        )|| (tournee instanceof TourneeTech &&
-                        (meilleur instanceof IntraEchangeTech || meilleur instanceof IntraDeplacementTech)))
-                    {
-                        OperateurIntraTournee toTest = tournee.getMeilleurOperateurIntra(type);
-                        if (toTest.isMeilleur(meilleur))
-                            meilleur = toTest;
-                    }
+                    if(tournee instanceof TourneeTruck && meilleur instanceof IntraEchangeTech)
+                        continue;
+
+                    if(tournee instanceof TourneeTruck && meilleur instanceof IntraDeplacementTech)
+                        continue;
+
+                    if(tournee instanceof TourneeTech && meilleur instanceof IntraEchangeTruck)
+                        continue;
+
+                    if(tournee instanceof TourneeTech && meilleur instanceof IntraDeplacementTruck)
+                        continue;
+
+                    OperateurIntraTournee toTest = tournee.getMeilleurOperateurIntra(type);
+                    if (toTest.isMeilleur(meilleur))
+                        meilleur = toTest;
                 }
             }
         }
@@ -350,7 +384,8 @@ public class Solution {
             for (int i = 0; i < tournees.size(); i++) {
                 for (int j = i; j < tournees.size(); j++) {
                     if (i == j) continue;
-                    /*if(tournees.get(i) instanceof TourneeTruck && meilleur instanceof InterDeplacementTech)*/
+                    if(tournees.get(i) instanceof TourneeTruck && meilleur instanceof InterDeplacementTech)
+                        continue;
                     if(tournees.get(i) instanceof TourneeTech && meilleur instanceof InterDeplacementTruck)
                         continue;
                     if(tournees.get(i) instanceof TourneeTruck && tournees.get(j) instanceof TourneeTech)
@@ -389,7 +424,6 @@ public class Solution {
                 }
             }
         }
-
         return meilleur;
     }
 
@@ -423,6 +457,22 @@ public class Solution {
                     if(isJourMaxTruck(infos.getTournee().getJour())) {
                         coutTotal += -truckCost;
                         numberTrucksUsed --;
+                    }
+                }
+                machineCost += temp;
+                coutTotal += infos.getDeltaCout();
+            }
+
+            if(infos instanceof InterDeplacementTech){
+                technicianDistance += ((InterDeplacementTech) infos).getDeltaDistance();
+                totaltechCost += ((InterDeplacementTech) infos).getDeltaCoutTournee()+((InterDeplacementTech) infos).evalDeltaDistanceAutreTournee();
+                int temp = ((InterDeplacementTech) infos).getDeltaIDLE();
+                if(infos.getTournee().getListRequest().size() == 1) {
+                    numberTechnicianDays --;
+                    temp += +techDayCost;
+                    if(!((TourneeTech)infos.getTournee()).getTechnician().isUsedAnotherDay(infos.getTournee().getJour())) {
+                        temp += +techCost;
+                        numberTechniciansUsed --;
                     }
                 }
                 machineCost += temp;

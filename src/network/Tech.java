@@ -80,7 +80,22 @@ public class Tech {
         return maxDistance;
     }
 
+    public int getDemande(int jour){
+        if (disponibilite.get(jour) != null)
+            return disponibilite.get(jour).demande;
+        return Integer.MAX_VALUE;
+    }
+
+    public boolean canInstallerMachine(int id){
+        if(this.machines.get(id-1) != 1) return false;
+        return true;
+    }
+
+    public int getMaxDemande(){return maxDemande;}
+
     public boolean isDisponible(Request request, int jour, TourneeTech tournee){
+        if(disponibilite.get(jour) == null)
+            return false;
         if(disponibilite.get(jour).tournee != null && disponibilite.get(jour).tournee != tournee)
             return false;
 
@@ -106,6 +121,9 @@ public class Tech {
             )
                 return false;
         }
+
+        boolean demande = disponibilite.get(jour).demande + 1 <= maxDemande;
+        int distance = (disponibilite.get(jour).distance );
 
         return disponibilite.get(jour).demande + 1 <= maxDemande &&
                 (disponibilite.get(jour).distance +
@@ -140,10 +158,34 @@ public class Tech {
         return false;
     }
 
+    public void retirerRequest(int distance, int jour){
+        disponibilite.get(jour).ajouterDemande(-1);
+        disponibilite.get(jour).ajouterDistance(distance);
+        if(disponibilite.get(jour).distance == 0) {
+            disponibilite.get(jour).fatigue = 0;
+            disponibilite.get(jour).tournee = null;
+        }
+    }
+
+    public void insererRequest(int distance, int jour){
+        disponibilite.get(jour).ajouterDemande(1);
+        disponibilite.get(jour).ajouterDistance(distance);
+    }
+
     public boolean isUsed(){
         int i = 1;
         while(disponibilite.get(i) != null){
             if (disponibilite.get(i).fatigue != 0)
+                return true;
+            i++;
+        }
+        return false;
+    }
+
+    public boolean isUsedAnotherDay(int jour){
+        int i = 1;
+        while(disponibilite.get(i) != null){
+            if (disponibilite.get(i).fatigue != 0 && i != jour)
                 return true;
             i++;
         }

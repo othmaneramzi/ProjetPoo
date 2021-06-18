@@ -4,7 +4,11 @@ import instance.Instance;
 import instance.Request;
 import network.Tech;
 import solution.Solution;
+import solution.Tournee;
+import solution.TourneeTech;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 
 public class InsertionPPV implements Solveur {
@@ -23,24 +27,69 @@ public class InsertionPPV implements Solveur {
         // Insertion PPV pour les tournées truck
         Request r = listRequest.getFirst();
         Tech t;
+        LinkedList<Request> listRequestTech = new LinkedList<Request>();
+        LinkedList<Request> listTabou = new LinkedList<Request>();
 
         while (!listRequest.isEmpty()) {
             if (r == null) r = listRequest.getFirst();
             if (!sol.ajouterClientDerniereTourneeTruck(r))
                 sol.ajouterClientNouvelleTourneeTruck(r, r.getFirstDay());
 
-            int day = 1;
-            boolean test = false;
-            while(!test && day < instance.getDays()) {
-                t = plusProcheVoisinTech(r, listTechs, r.getFirstDay()+day);
-                if(t != null) {
-                    if (!sol.ajouterClientDerniereTourneeTech(r, r.getFirstDay() + day, t)) {
-                        test = sol.ajouterClientNouvelleTourneeTech(r, r.getJourLivraison() + day, t);
-                    }else {
-                        test = true;
+            listRequestTech.add(r);
+            LinkedList<Request> listdeParcours = new LinkedList<Request>();
+            listdeParcours.addAll(listRequestTech);
+            for (Request req: listdeParcours) {
+                int day = 1;
+                boolean test = false;
+                while(!test && req.getJourLivraison()+day < instance.getDays()) {
+                    t = plusProcheVoisinTech(req, listTechs, req.getJourLivraison()+day);
+                    if(t != null) {
+                        if (!sol.ajouterClientDerniereTourneeTech(req, req.getJourLivraison() + day, t)) {
+                            test = sol.ajouterClientNouvelleTourneeTech(req, req.getJourLivraison() + day, t);
+                        }else {
+                            test = true;
+                        }
                     }
+                    day++;
                 }
-                day++;
+                if(!test){
+                    //TODO problème tech
+                    listTabou.add(req);
+                    boolean verif = true;
+                    int jour = req.getJourLivraison()+1;
+                    while(verif && jour <= req.getLastDay()) {
+                        LinkedList<Tournee> listeTournee = sol.getListeTournees().get(jour);
+                        int i = 0;
+                        while (verif && i < listeTournee.size()) {
+                            Tournee tournee = listeTournee.get(i);
+                            if (tournee instanceof TourneeTech) {
+                                Tech potentiel = ((TourneeTech) tournee).getTechnician();
+                                int distance = potentiel.getDepot().getCoutVers(req.getClient()) * 2;
+                                int maxdistance = potentiel.getMaxDistance();
+                                if (potentiel.canInstallerMachine(req.getIdMachine()) && distance <= maxdistance) {
+                                    verif = false;
+                                    for (Request istabou : tournee.getListRequest()) {
+                                        if (listTabou.contains(istabou))
+                                            verif = true;
+                                    }
+                                    if (!verif) {
+                                        LinkedList<Request> list = tournee.getListRequest();
+                                        for (int j = list.size() - 1; tournee.getListRequest().size() > 0; j--) {
+                                            listRequestTech.add(list.get(j));
+                                            sol.retirerRequestTourneeTech(j, (TourneeTech) tournee);
+                                        }
+                                        if (sol.ajouterClientTourneeTech(req, (TourneeTech) tournee))
+                                            listRequestTech.remove(req);
+                                    }
+                                }
+                            }
+                            i++;
+                        }
+                        jour++;
+                    }
+                }else{
+                    listRequestTech.remove(req);
+                }
             }
 
             listRequest.remove(r);
